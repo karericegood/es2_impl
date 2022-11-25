@@ -952,23 +952,24 @@ static void handle_tx_zerocopy(struct vhost_net *net, struct socket *sock)
 
 /* Expects to be always run from workqueue - which acts as
  * read-size critical section for our kind of RCU. */
+
+// i have to modify this section to implement the algorithms(mode switch).
 static void handle_tx(struct vhost_net *net)
 {
 	struct vhost_net_virtqueue *nvq = &net->vqs[VHOST_NET_VQ_TX];
 	struct vhost_virtqueue *vq = &nvq->vq;
 	struct socket *sock;
-
+           
 	mutex_lock_nested(&vq->mutex, VHOST_NET_VQ_TX);
 	sock = vhost_vq_get_backend(vq);
 	if (!sock)
 		goto out;
-
 	if (!vq_meta_prefetch(vq))
 		goto out;
 
 	vhost_disable_notify(&net->dev, vq);
 	vhost_net_disable_vq(net, vq);
-
+	//zero-copy and copy are same function that send a packet. 
 	if (vhost_sock_zcopy(sock))
 		handle_tx_zerocopy(net, sock);
 	else
@@ -1318,6 +1319,10 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 	vqs[VHOST_NET_VQ_RX] = &n->vqs[VHOST_NET_VQ_RX].vq;
 	n->vqs[VHOST_NET_VQ_TX].vq.handle_kick = handle_tx_kick;
 	n->vqs[VHOST_NET_VQ_RX].vq.handle_kick = handle_rx_kick;
+	//only used in tx-buffer - sjkim 
+	n->vqs[VHOST_NET_VQ_TX].vq.is_polling_mode = 0;
+	//maybe not used but need to define - sjkim 
+	n->vqs[VHOST_NET_VQ_RX].vq.is_polling_mode = 0;	
 	for (i = 0; i < VHOST_NET_VQ_MAX; i++) {
 		n->vqs[i].ubufs = NULL;
 		n->vqs[i].ubuf_info = NULL;
